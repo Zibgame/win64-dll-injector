@@ -1,32 +1,53 @@
-NAME_INJECTOR = bin\dll_injector.exe
-NAME_TARGET = bin\main.exe
-NAME_DLL = bin\dll.dll
+NAME = bin/dll_injector.exe
+DLL = bin/dll.dll
+TARGET = bin/target.exe
 
-SRC_INJECTOR = src\injector\dll_injector.cpp
-SRC_TARGET = src\target\main.c
-SRC_DLL = src\dll\dll.cpp
+CXX = g++
+CXXFLAGS = -Wall -Wextra -std=c++11 -Iincludes -Isrc/imgui -Isrc/imgui/backends
 
-CC = cl
+SRC = \
+	src/main.cpp \
+	src/injector/dll_injector.cpp \
+	src/imgui/imgui.cpp \
+	src/imgui/imgui_draw.cpp \
+	src/imgui/imgui_tables.cpp \
+	src/imgui/imgui_widgets.cpp \
+	src/imgui/imgui_demo.cpp \
+	src/imgui/backends/imgui_impl_win32.cpp \
+	src/imgui/backends/imgui_impl_dx11.cpp
 
-CFLAGS = /W3 /nologo
+DLL_SRC = src/dll/dll.cpp
+TARGET_SRC = src/target/main.cpp
 
-all: $(NAME_INJECTOR) $(NAME_TARGET) $(NAME_DLL)
+OBJ = $(SRC:.cpp=.o)
 
-$(NAME_INJECTOR):
-	$(CC) $(CFLAGS) $(SRC_INJECTOR) /Fe:$(NAME_INJECTOR)
+LIBS = -ld3d11 -ldxgi -ld3dcompiler -lgdi32 -ldwmapi
 
-$(NAME_TARGET):
-	$(CC) $(CFLAGS) $(SRC_TARGET) /Fe:$(NAME_TARGET)
+all: $(NAME) $(DLL) $(TARGET)
 
-$(NAME_DLL):
-	$(CC) $(CFLAGS) /LD $(SRC_DLL) /Fe:$(NAME_DLL)
+$(NAME): $(OBJ)
+	if not exist bin mkdir bin
+	$(CXX) $(OBJ) -o $(NAME) $(LIBS)
+
+$(DLL): $(DLL_SRC)
+	if not exist bin mkdir bin
+	$(CXX) -shared -o $(DLL) $(DLL_SRC) -luser32
+
+$(TARGET): $(TARGET_SRC)
+	if not exist bin mkdir bin
+	$(CXX) $(TARGET_SRC) -o $(TARGET)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	del /Q *.obj 2>nul
+	del /Q /S src\*.o 2>nul
+	del /Q /S src\imgui\*.o 2>nul
+	del /Q /S src\imgui\backends\*.o 2>nul
+	del /Q /S src\injector\*.o 2>nul
 
 fclean: clean
-	del /Q bin\*.exe bin\*.dll 2>nul
+	del /Q /S bin\*.exe 2>nul
+	del /Q /S bin\*.dll 2>nul
 
 re: fclean all
-
-.PHONY: all clean fclean re

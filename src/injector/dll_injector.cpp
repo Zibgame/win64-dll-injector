@@ -3,58 +3,66 @@
 #include <stdlib.h>
 #include <string.h>
 
-int main(int argc, char **argv)
+int inject_dll(DWORD pid, char *dll_path)
 {
-    // proc_name pid dll
-    if (argc < 3 || argc > 3)
-    {
-        printf("Argument: pid dll");
-        return (0);
-    }
-    DWORD pid;
-    char *dll_path;
     HANDLE process;
-    LPVOID remote; // LPVOID pointeur sur du vide sur windo
+    LPVOID remote;
     HANDLE thread;
+    LPTHREAD_START_ROUTINE load_library;
 
-    pid = atoi(argv[1]);
-    dll_path = argv[2];
-
-    process = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
-    if (!process)
-    {
-        printf("Error: Pid invalid\n");
-        return (0);
-    }
-
-    remote = VirtualAllocEx(process, 0, strlen(dll_path) + 1, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!remote)
-    {
-        printf("Error: Cant alloc in process\n");
-        return (0);
-    }
-
-    if (!WriteProcessMemory(process, remote, dll_path, strlen(dll_path) + 1, NULL))
-    {
-        VirtualFreeEx(process, remote, 0, MEM_RELEASE);
-        CloseHandle(process);
-        printf("Error: Cant Write in the procces\n");
+    if (!dll_path)
         return (1);
-    }
-    thread = CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, remote, 0, NULL);
+
+    process = OpenProcess(
+        PROCESS_CREATE_THREAD |
+        PROCESS_QUERY_INFORMATION |
+        PROCESS_VM_OPERATION |
+        PROCESS_VM_WRITE |
+        PROCESS_VM_READ,
+        0,
+    pid);
+    if (!process)
+        return (1);
+
+    remote = VirtualAllocEx(process, 0, strlen(dll_path) + 1,
+            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!remote)
+        return (CloseHandle(process), 1);
+
+    if (!WriteProcessMemory(process, remote, dll_path,
+            strlen(dll_path) + 1, NULL))
+        return (VirtualFreeEx(process, remote, 0, MEM_RELEASE),
+                CloseHandle(process), 1);
+
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-function-type"
+
+    load_library = (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
+
+    #pragma GCC diagnostic pop
+
+    thread = CreateRemoteThread(process, NULL, 0, load_library, remote, 0, NULL);
     if (!thread)
     {
-        VirtualFreeEx(process, remote, 0, MEM_RELEASE);
-        CloseHandle(process);
-        return (1);
-    }
-    // attendre load de dll via LoadLibraryA executer avant de free
-    WaitForSingleObject(thread, INFINITE);
+        return (VirtualFreeEx(process, remote, 0, MEM_RELEASE),
+                CloseHandle(process), 1);
+        printf("CreateRemoteThread failed: %lu\n", GetLastError());
+    }  
 
-    // free
+    DWORD exit_code;
+
+    WaitForSingleObject(thread, INFINITE);
+    GetExitCodeThread(thread, &exit_code);
+
+    printf("LoadLibrary return: %lu\n", exit_code);
+    printf("PID: %lu\n", pid);
+    printf("DLL: %s\n", dll_path);
+    printf("Process handle: %p\n", process);
+    printf("Remote memory: %p\n", remote);
+    printf("LoadLibrary addr: %p\n", load_library);
+
     VirtualFreeEx(process, remote, 0, MEM_RELEASE);
     CloseHandle(thread);
     CloseHandle(process);
-    printf("injection succes");
     return (0);
 }

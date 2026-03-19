@@ -23,12 +23,11 @@ DWORD ft_putstr(char *str)
     return (i);
 }
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD reason, LPVOID lpvReserved)
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 {
-    if(reason == DLL_PROCESS_ATTACH)
+    if (fdwReason == DLL_PROCESS_ATTACH)
     {
-        MessageBoxA(0, "DLL injected", "OK", 0);
-        ft_putstr("dll is injected in you program\n");
+        MessageBoxA(0, "Injected!", "OK", 0);
     }
-    return (true);
+    return 1;
 }
