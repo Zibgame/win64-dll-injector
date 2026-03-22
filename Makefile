@@ -23,32 +23,60 @@ OBJ = $(SRC:.cpp=.o)
 
 LIBS = -ld3d11 -ldxgi -ld3dcompiler -lgdi32 -ldwmapi
 
+# Detect Windows (disable colors if needed)
+ifeq ($(OS),Windows_NT)
+	GREEN=
+	YELLOW=
+	RED=
+	CYAN=
+	RESET=
+else
+	GREEN=\x1b[32m
+	YELLOW=\x1b[33m
+	RED=\x1b[31m
+	CYAN=\x1b[36m
+	RESET=\x1b[0m
+endif
+
 all: $(NAME) $(DLL) $(TARGET)
 
 $(NAME): $(OBJ)
+	@echo $(CYAN)[INFO] Killing running injector...$(RESET)
+	-taskkill /F /IM dll_injector.exe >nul 2>&1
+	@echo $(GREEN)[BUILD] Compiling injector...$(RESET)
 	$(CXX) $(OBJ) -o $(NAME) $(LIBS)
+	@echo $(GREEN)[OK] Injector built successfully$(RESET)
 
 $(DLL): $(DLL_SRC)
-	if not exist bin mkdir bin
-	CXXFLAGS += -m64
+	@echo $(CYAN)[INFO] Cleaning DLL locks...$(RESET)
+	-taskkill /F /IM target.exe >nul 2>&1
+	-del /Q $(DLL) >nul 2>&1
+	@if not exist bin mkdir bin
+	@echo $(GREEN)[BUILD] Compiling DLL...$(RESET)
 	$(CXX) -shared -o $(DLL) $(DLL_SRC) -luser32
+	@echo $(GREEN)[OK] DLL built successfully$(RESET)
 
 $(TARGET): $(TARGET_SRC)
-	if not exist bin mkdir bin
+	@echo $(CYAN)[INFO] Building target process...$(RESET)
+	@if not exist bin mkdir bin
 	$(CXX) $(TARGET_SRC) -o $(TARGET)
+	@echo $(GREEN)[OK] Target built successfully$(RESET)
 
 %.o: %.cpp
+	@echo $(YELLOW)[COMPILING] $<$(RESET)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	del /Q /S src\*.o 2>nul
-	del /Q /S src\imgui\*.o 2>nul
-	del /Q /S src\imgui\backends\*.o 2>nul
-	del /Q /S src\injector\*.o 2>nul
+	@echo $(RED)[CLEAN] Removing object files...$(RESET)
+	-del /Q /S src\*.o >nul 2>&1
+	-del /Q /S src\imgui\*.o >nul 2>&1
+	-del /Q /S src\imgui\backends\*.o >nul 2>&1
+	-del /Q /S src\injector\*.o >nul 2>&1
 
 fclean: clean
-	del /Q $(NAME) 2>nul
-	del /Q /S bin\*.exe 2>nul
-	del /Q /S bin\*.dll 2>nul
+	@echo $(RED)[FCLEAN] Removing binaries...$(RESET)
+	-del /Q $(NAME) >nul 2>&1
+	-del /Q /S bin\*.exe >nul 2>&1
+	-del /Q /S bin\*.dll >nul 2>&1
 
 re: fclean all

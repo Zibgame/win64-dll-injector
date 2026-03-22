@@ -25,7 +25,11 @@ DWORD ft_putstr(char *str)
 
 DWORD WINAPI thread_func(LPVOID param)
 {
+    HMODULE hModule;
+    
+    hModule = (HMODULE)param;
     MessageBoxA(0, "Injected!", "OK", 0);
+    FreeLibraryAndExitThread(hModule, 0);
     return 0;
 }
 
@@ -33,7 +37,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD reason, LPVOID reserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
-        CreateThread(0, 0, thread_func, 0, 0, 0);
+        DisableThreadLibraryCalls(hinstDLL);
+        CreateThread(0, 0, thread_func, hinstDLL, 0, 0);
     }
     return 1;
 }
